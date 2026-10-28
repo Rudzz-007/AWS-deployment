@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Records | AWS DynamoDB Cloud System</title>
+  <meta name="description" content="Clean, responsive Student Record Management System with seamless AWS DynamoDB integration and local mock fallback.">
+  
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Background Glow Accents -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <!-- Header / Navigation -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <div class="brand-text">
+          <h1>EduCloud <span class="badge-tech">AWS DynamoDB</span></h1>
+          <p class="subtitle">Student Record Management System</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Live System Status Badge -->
+        <div id="systemStatusBadge" class="status-badge status-loading" title="Click to view backend storage details">
+          <span class="status-dot"></span>
+          <span id="statusBadgeText">Checking DB Status...</span>
+        </div>
+
+        <button id="btnHealthCheck" class="btn-ghost" title="Check /health endpoint">
+          <i class="fa-solid fa-heart-pulse"></i>
+          <span>Health Check</span>
+        </button>
+
+        <button id="btnArchModal" class="btn-ghost" title="View AWS Cloud Architecture">
+          <i class="fa-brands fa-aws"></i>
+          <span>Architecture</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+    
+    <!-- System Status Banner -->
+    <section id="statusBanner" class="status-banner banner-mock">
+      <div class="banner-content">
+        <div class="banner-icon-wrapper">
+          <i id="bannerIcon" class="fa-solid fa-database"></i>
+        </div>
+        <div class="banner-info">
+          <div class="banner-title-row">
+            <h2 id="bannerTitle">Running on Local Mock Data</h2>
+            <span id="bannerModeTag" class="tag tag-mock">Local In-Memory Mode</span>
+          </div>
+          <p id="bannerDescription">
+            AWS DynamoDB credentials or table not detected locally. App is running seamlessly with in-memory storage. 
+            Once deployed to EC2 with an attached IAM role, it connects to AWS DynamoDB automatically.
+          </p>
+          <div class="banner-meta">
+            <span class="meta-item"><i class="fa-solid fa-table"></i> Table: <strong id="metaTable">StudentRecords</strong></span>
+            <span class="meta-item"><i class="fa-solid fa-earth-americas"></i> Region: <strong id="metaRegion">ap-south-1</strong></span>
+            <span class="meta-item"><i class="fa-solid fa-key"></i> Key: <strong>studentId (Partition Key)</strong></span>
+          </div>
+        </div>
+      </div>
+      <div class="banner-actions">
+        <button id="btnRecheckStatus" class="btn-sm btn-secondary" title="Test AWS DynamoDB connectivity">
+          <i class="fa-solid fa-rotate"></i>
+          <span>Test AWS Link</span>
+        </button>
+        <button id="btnResetMock" class="btn-sm btn-outline" title="Reset sample dummy data">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <span>Seed Mock Data</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Stats Dashboard Strip -->
+    <section class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon stat-students"><i class="fa-solid fa-users"></i></div>
+        <div class="stat-details">
+          <span class="stat-label">Total Records</span>
+          <span id="statTotalStudents" class="stat-value">0</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-courses"><i class="fa-solid fa-book-bookmark"></i></div>
+        <div class="stat-details">
+          <span class="stat-label">Enrolled Courses</span>
+          <span id="statTotalCourses" class="stat-value">0</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-backend"><i class="fa-solid fa-server"></i></div>
+        <div class="stat-details">
+          <span class="stat-label">Storage Backend</span>
+          <span id="statBackendType" class="stat-value text-mono">Mock Mode</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-uptime"><i class="fa-solid fa-clock"></i></div>
+        <div class="stat-details">
+          <span class="stat-label">Server Uptime</span>
+          <span id="statUptime" class="stat-value text-mono">--</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Core App Layout: 2 Columns (Form + Table) -->
+    <div class="app-layout">
+      
+      <!-- Left Column: Add Student Form Card -->
+      <section class="form-card card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fa-solid fa-user-plus text-primary"></i>
+            <h3>Register New Student</h3>
+          </div>
+          <button id="btnAutoGenerate" type="button" class="btn-link" title="Auto-fill form with realistic test data">
+            <i class="fa-solid fa-dice"></i> Quick Fill
+          </button>
+        </div>
+
+        <p class="card-subtitle">
+          Adds a record with <code class="code-pill">studentId</code> as the DynamoDB primary partition key.
+        </p>
+
+        <form id="studentForm" novalidate>
+          <!-- Student ID -->
+          <div class="form-group">
+            <div class="label-row">
+              <label for="studentId">Student ID <span class="required">*</span></label>
+              <button id="btnGenId" type="button" class="btn-mini-link">Generate ID</button>
+            </div>
+            <div class="input-wrapper">
+              <i class="input-icon fa-solid fa-id-card"></i>
+              <input 
+                type="text" 
+                id="studentId" 
+                name="studentId" 
+                placeholder="e.g. STU-2026-101" 
+                required 
+                autocomplete="off"
+              />
+            </div>
+            <small class="field-hint">Primary Key in DynamoDB table.</small>
+          </div>
+
+          <!-- Full Name -->
+          <div class="form-group">
+            <label for="name">Student Full Name <span class="required">*</span></label>
+            <div class="input-wrapper">
+              <i class="input-icon fa-solid fa-user"></i>
+              <input 
+                type="text" 
+                id="name" 
+                name="name" 
+                placeholder="e.g. Alex Henderson" 
+                required 
+                autocomplete="name"
+              />
+            </div>
+          </div>
+
+          <!-- Course -->
+          <div class="form-group">
+            <label for="course">Course of Study <span class="required">*</span></label>
+            <div class="input-wrapper">
+              <i class="input-icon fa-solid fa-graduation-cap"></i>
+              <select id="course" name="course" required>
+                <option value="" disabled selected>Select a course program...</option>
+                <option value="Cloud Computing & AWS Architecture">Cloud Computing & AWS Architecture</option>
+                <option value="Full-Stack Modern Web Engineering">Full-Stack Modern Web Engineering</option>
+                <option value="DevOps, CI/CD & Kubernetes">DevOps, CI/CD & Kubernetes</option>
+                <option value="Data Science & Machine Learning Systems">Data Science & Machine Learning Systems</option>
+                <option value="Cyber Security & Cloud Defense">Cyber Security & Cloud Defense</option>
+                <option value="Database Engineering & Big Data">Database Engineering & Big Data</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div class="form-group">
+            <label for="email">Email Address <span class="required">*</span></label>
+            <div class="input-wrapper">
+              <i class="input-icon fa-solid fa-envelope"></i>
+              <input 
+                type="email" 
+                id="email" 
+                name="email" 
+                placeholder="alex.henderson@university.edu" 
+                required 
+                autocomplete="email"
+              />
+            </div>
+          </div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="btnSubmitStudent" class="btn-primary btn-block">
+            <span class="btn-text">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+              Save Student Record
+            </span>
+            <span class="btn-loader spinner" style="display: none;"></span>
+          </button>
+        </form>
+      </section>
+
+      <!-- Right Column: Student Directory & Table Card -->
+      <section class="table-card card">
+        <div class="card-header table-header">
+          <div class="card-title">
+            <i class="fa-solid fa-address-book text-primary"></i>
+            <h3>Student Directory</h3>
+            <span id="badgeRecordCount" class="count-badge">0</span>
+          </div>
+
+          <div class="table-toolbar">
+            <!-- Search Filter -->
+            <div class="search-box">
+              <i class="fa-solid fa-magnifying-glass search-icon"></i>
+              <input 
+                type="text" 
+                id="searchInput" 
+                placeholder="Search by ID, name, email..." 
+                autocomplete="off"
+              />
+              <button id="btnClearSearch" class="btn-clear-search" style="display: none;" title="Clear search">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <!-- Refresh Table Button -->
+            <button id="btnRefreshList" class="btn-icon" title="Refresh student records list">
+              <i class="fa-solid fa-arrow-rotate-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Chips -->
+        <div class="course-filter-chips" id="filterChipsContainer">
+          <button class="chip active" data-filter="all">All Programs</button>
+          <button class="chip" data-filter="Cloud Computing & AWS Architecture">AWS & Cloud</button>
+          <button class="chip" data-filter="Full-Stack Modern Web Engineering">Full-Stack</button>
+          <button class="chip" data-filter="DevOps, CI/CD & Kubernetes">DevOps</button>
+          <button class="chip" data-filter="Data Science & Machine Learning Systems">Data Science</button>
+        </div>
+
+        <!-- Students Table -->
+        <div class="table-responsive">
+          <table class="students-table" id="studentsTable">
+            <thead>
+              <tr>
+                <th>Student ID</th>
+                <th>Full Name</th>
+                <th>Course</th>
+                <th>Email</th>
+                <th>Enrolled Date</th>
+                <th class="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="studentsTableBody">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+
+          <!-- Empty State -->
+          <div id="emptyState" class="empty-state" style="display: none;">
+            <div class="empty-icon">
+              <i class="fa-solid fa-folder-open"></i>
+            </div>
+            <h4>No Student Records Found</h4>
+            <p id="emptyStateMessage">No records match your search or the database is currently empty.</p>
+            <button id="btnEmptyAdd" class="btn-sm btn-primary">
+              <i class="fa-solid fa-plus"></i> Add First Student
+            </button>
+          </div>
+
+          <!-- Loading State -->
+          <div id="tableLoading" class="table-loading">
+            <div class="spinner"></div>
+            <p>Loading student records...</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-icon danger-icon">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div>
+          <h3>Confirm Record Deletion</h3>
+          <p class="modal-subtitle">This action cannot be undone.</p>
+        </div>
+        <button id="btnCloseDeleteModal" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete student record:</p>
+        <div class="delete-preview-card">
+          <strong id="deleteTargetName">Student Name</strong>
+          <span id="deleteTargetId" class="code-pill">STU-000</span>
+        </div>
+        <p class="text-muted text-sm mt-2">
+          This will issue a <code class="code-pill">DeleteCommand</code> to AWS DynamoDB (or remove from memory in mock mode).
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button id="btnCancelDelete" class="btn-secondary">Cancel</button>
+        <button id="btnConfirmDelete" class="btn-danger">
+          <span class="btn-text"><i class="fa-solid fa-trash-can"></i> Delete Record</span>
+          <span class="btn-loader spinner" style="display: none;"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AWS Architecture & Deployment Info Modal -->
+  <div id="archModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <div class="modal-icon aws-icon">
+          <i class="fa-brands fa-aws"></i>
+        </div>
+        <div>
+          <h3>AWS DynamoDB & EC2 Architecture</h3>
+          <p class="modal-subtitle">Enterprise deployment design & credential chain</p>
+        </div>
+        <button id="btnCloseArchModal" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="arch-flow">
+          <div class="flow-step">
+            <span class="step-num">1</span>
+            <strong>Frontend Client</strong>
+            <p>Single-service Vanilla JS UI served by Express.</p>
+          </div>
+          <div class="flow-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+          <div class="flow-step">
+            <span class="step-num">2</span>
+            <strong>Node.js / Express</strong>
+            <p>CRUD REST endpoints + <code>/health</code> probe.</p>
+          </div>
+          <div class="flow-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+          <div class="flow-step">
+            <span class="step-num">3</span>
+            <strong>EC2 IAM Role</strong>
+            <p>Default credential provider chain (Zero hardcoded keys).</p>
+          </div>
+          <div class="flow-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+          <div class="flow-step active-cloud">
+            <span class="step-num">4</span>
+            <strong>AWS DynamoDB</strong>
+            <p>Table <code>StudentRecords</code> (Partition Key: <code>studentId</code>).</p>
+          </div>
+        </div>
+
+        <div class="arch-section">
+          <h4><i class="fa-solid fa-shield-halved text-primary"></i> EC2 Deployment Ready (Zero Key Management)</h4>
+          <p>
+            When deploying to an EC2 instance, attach an IAM Role with <code>AmazonDynamoDBFullAccess</code> (or custom policy for <code>StudentRecords</code>).
+            The AWS SDK v3 automatically fetches temporary STS credentials via the EC2 Instance Metadata Service (IMDS).
+          </p>
+        </div>
+
+        <div class="arch-section">
+          <h4><i class="fa-solid fa-heart-pulse text-success"></i> Health Check & Monitoring</h4>
+          <p>
+            The route <code class="code-pill">GET /health</code> returns <code>{"status":"ok","uptime":process.uptime()}</code>.
+            This is configured for CloudWatch Synthetics, AWS ALB Health Checks, and Auto Scaling group health checks.
+          </p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnCloseArchModalBottom" class="btn-primary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
